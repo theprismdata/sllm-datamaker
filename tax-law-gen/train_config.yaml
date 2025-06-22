@@ -29,7 +29,7 @@ training_args:
   dataloader_pin_memory: false
   remove_unused_columns: false
   push_to_hub: false
-  report_to: "wandb"
+  report_to: "none"
   run_name: "phi2-tax-law-qa"
 
 # LoRA Configuration

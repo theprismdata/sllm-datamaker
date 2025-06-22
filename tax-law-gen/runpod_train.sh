@@ -45,6 +45,8 @@ mkdir -p phi2-tax-law-finetuned
 export CUDA_VISIBLE_DEVICES=0
 export TOKENIZERS_PARALLELISM=false
 export TRANSFORMERS_CACHE="/tmp/transformers_cache"
+export WANDB_DISABLED=true
+export WANDB_MODE=disabled
 
 # Start training
 echo "Starting training..."
