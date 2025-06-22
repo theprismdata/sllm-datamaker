@@ -86,8 +86,8 @@ def load_config(config_path: str = "train_config.yaml") -> TrainingConfig:
             per_device_train_batch_size=training_args.get('per_device_train_batch_size', 4),
             per_device_eval_batch_size=training_args.get('per_device_eval_batch_size', 4),
             gradient_accumulation_steps=training_args.get('gradient_accumulation_steps', 4),
-            learning_rate=training_args.get('learning_rate', 2e-5),
-            weight_decay=training_args.get('weight_decay', 0.01),
+            learning_rate=float(training_args.get('learning_rate', 2e-5)),
+            weight_decay=float(training_args.get('weight_decay', 0.01)),
             warmup_steps=training_args.get('warmup_steps', 100),
             logging_steps=training_args.get('logging_steps', 10),
             save_steps=training_args.get('save_steps', 500),
@@ -98,9 +98,9 @@ def load_config(config_path: str = "train_config.yaml") -> TrainingConfig:
             run_name=training_args.get('run_name', 'phi2-tax-law-qa'),
             lora_r=lora_config.get('r', 16),
             lora_alpha=lora_config.get('lora_alpha', 32),
-            lora_dropout=lora_config.get('lora_dropout', 0.1),
+            lora_dropout=float(lora_config.get('lora_dropout', 0.1)),
             train_file=dataset_config.get('train_file', 'fine-tunning-ds/distillation_legal_qa_dataset.json'),
-            validation_split=dataset_config.get('validation_split', 0.1),
+            validation_split=float(dataset_config.get('validation_split', 0.1)),
             prompt_template=config_dict.get('prompt_template', "### 질문: {question}\n\n### 답변: {answer}")
         )
     else:
