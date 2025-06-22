@@ -50,11 +50,11 @@ export WANDB_MODE=disabled
 
 # Start training
 echo "Starting training..."
-python train.py
+python train.py 2>&1 | tee training.log
 
 # Check if training completed successfully
 if [ $? -eq 0 ]; then
-    echo "Training completed successfully!"
+    echo "Training completed successfully!" | tee -a training.log
     
     # Show model size
     if [ -d "phi2-tax-law-finetuned" ]; then

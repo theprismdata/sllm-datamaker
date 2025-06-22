@@ -9,7 +9,7 @@ truncation: true
 
 # Training Configuration
 training_args:
-  output_dir: "./phi2-tax-law-finetuned"
+  output_dir: "/workspace/phi2-tax-law-finetuned"
   num_train_epochs: 3
   per_device_train_batch_size: 4
   per_device_eval_batch_size: 4
