@@ -19,7 +19,7 @@ from transformers import (
     EarlyStoppingCallback,
     BitsAndBytesConfig
 )
-from peft import LoraConfig, get_peft_model, TaskType
+from peft import LoraConfig, get_peft_model, TaskType, prepare_model_for_kbit_training
 from datasets import Dataset
 import torch
 from torch.utils.data import DataLoader
@@ -52,7 +52,7 @@ class TrainingConfig:
     eval_steps: int = 500
     output_dir: str = "./phi2-tax-law-finetuned"
     fp16: bool = True
-    report_to: str = "wandb"
+    report_to: str = "none"
     run_name: str = "phi2-tax-law-qa"
     
     # LoRA config
@@ -95,7 +95,7 @@ def load_config(config_path: str = "train_config.yaml") -> TrainingConfig:
             eval_steps=training_args.get('eval_steps', 500),
             output_dir=training_args.get('output_dir', './phi2-tax-law-finetuned'),
             fp16=training_args.get('fp16', True),
-            report_to=training_args.get('report_to', 'wandb'),
+            report_to=training_args.get('report_to', 'none'),
             run_name=training_args.get('run_name', 'phi2-tax-law-qa'),
             lora_r=lora_config.get('r', 16),
             lora_alpha=lora_config.get('lora_alpha', 32),
@@ -166,13 +166,6 @@ def tokenize_function(examples, tokenizer, config):
         return_tensors="pt"
     )
 
-def prepare_model_for_kbit_training(model):
-    """Prepare model for k-bit training"""
-    for name, param in model.named_parameters():
-        if param.ndim > 1 and param.requires_grad:
-            torch.nn.init.kaiming_uniform_(param)
-    return model
-
 def main():
     """Main training function"""
     logger.info("Starting Phi-2 fine-tuning for Tax Law Q&A")
@@ -216,6 +209,9 @@ def main():
     model.config.use_cache = False  # Required for gradient checkpointing
     model.gradient_checkpointing_enable()
     
+    # Prepare model for k-bit training
+    model = prepare_model_for_kbit_training(model)
+    
     # Configure LoRA
     logger.info("Configuring LoRA")
     lora_config = LoraConfig(
@@ -228,13 +224,8 @@ def main():
         inference_mode=False
     )
     
-    # Prepare model for k-bit training
-    model = prepare_model_for_kbit_training(model)
-    
     # Apply LoRA
     model = get_peft_model(model, lora_config)
-    
-    # Print trainable parameters
     model.print_trainable_parameters()
     
     # Load and prepare dataset
