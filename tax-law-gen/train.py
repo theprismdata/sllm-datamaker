@@ -16,7 +16,8 @@ from transformers import (
     TrainingArguments,
     Trainer,
     DataCollatorForLanguageModeling,
-    EarlyStoppingCallback
+    EarlyStoppingCallback,
+    BitsAndBytesConfig
 )
 from peft import LoraConfig, get_peft_model, TaskType
 from datasets import Dataset
@@ -165,6 +166,13 @@ def tokenize_function(examples, tokenizer, config):
         return_tensors="pt"
     )
 
+def prepare_model_for_kbit_training(model):
+    """Prepare model for k-bit training"""
+    for name, param in model.named_parameters():
+        if param.ndim > 1 and param.requires_grad:
+            torch.nn.init.kaiming_uniform_(param)
+    return model
+
 def main():
     """Main training function"""
     logger.info("Starting Phi-2 fine-tuning for Tax Law Q&A")
@@ -187,15 +195,26 @@ def main():
     # Load model
     logger.info(f"Loading model from {config.model_name}")
     torch.cuda.empty_cache()  # Clear CUDA cache before model loading
+    
+    # Configure quantization
+    bnb_config = BitsAndBytesConfig(
+        load_in_8bit=True,
+        bnb_8bit_use_double_quant=True,
+        bnb_8bit_quant_type="nf8",
+        bnb_8bit_compute_dtype=torch.float16
+    )
+    
     model = AutoModelForCausalLM.from_pretrained(
         config.model_name,
         torch_dtype=torch.float16,
         device_map="auto",
         trust_remote_code=True,
-        load_in_8bit=True,  # Enable 8-bit quantization
+        quantization_config=bnb_config
     )
     
-    model.gradient_checkpointing_enable()  # Enable gradient checkpointing
+    # Enable gradient checkpointing
+    model.config.use_cache = False  # Required for gradient checkpointing
+    model.gradient_checkpointing_enable()
     
     # Configure LoRA
     logger.info("Configuring LoRA")
@@ -205,11 +224,17 @@ def main():
         target_modules=["q_proj", "v_proj", "k_proj", "out_proj", "fc1", "fc2"],
         lora_dropout=config.lora_dropout,
         bias="none",
-        task_type=TaskType.CAUSAL_LM
+        task_type=TaskType.CAUSAL_LM,
+        inference_mode=False
     )
+    
+    # Prepare model for k-bit training
+    model = prepare_model_for_kbit_training(model)
     
     # Apply LoRA
     model = get_peft_model(model, lora_config)
+    
+    # Print trainable parameters
     model.print_trainable_parameters()
     
     # Load and prepare dataset
@@ -254,7 +279,8 @@ def main():
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
         greater_is_better=False,
-        fp16=config.fp16,
+        fp16=True,
+        bf16=False,
         dataloader_pin_memory=False,
         remove_unused_columns=False,
         push_to_hub=False,
@@ -262,8 +288,8 @@ def main():
         run_name=config.run_name,
         save_total_limit=3,
         logging_dir=f"{config.output_dir}/logs",
-        gradient_checkpointing=True,  # Enable gradient checkpointing in training
-        optim="adamw_torch_fused"  # Use fused optimizer
+        gradient_checkpointing=True,
+        optim="paged_adamw_32bit"
     )
     
     # Initialize trainer
