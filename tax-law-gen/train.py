@@ -36,13 +36,13 @@ logger = logging.getLogger(__name__)
 class TrainingConfig:
     """Training configuration dataclass"""
     model_name: str = "microsoft/phi-2"
-    max_length: int = 2048
+    max_length: int = 1024
     padding: str = "max_length"
     truncation: bool = True
     num_train_epochs: int = 3
-    per_device_train_batch_size: int = 4
-    per_device_eval_batch_size: int = 4
-    gradient_accumulation_steps: int = 4
+    per_device_train_batch_size: int = 2
+    per_device_eval_batch_size: int = 2
+    gradient_accumulation_steps: int = 8
     learning_rate: float = 2e-5
     weight_decay: float = 0.01
     warmup_steps: int = 100
@@ -79,13 +79,13 @@ def load_config(config_path: str = "train_config.yaml") -> TrainingConfig:
         
         return TrainingConfig(
             model_name=config_dict.get('model_name', 'microsoft/phi-2'),
-            max_length=config_dict.get('max_length', 2048),
+            max_length=config_dict.get('max_length', 1024),
             padding=config_dict.get('padding', 'max_length'),
             truncation=config_dict.get('truncation', True),
             num_train_epochs=training_args.get('num_train_epochs', 3),
-            per_device_train_batch_size=training_args.get('per_device_train_batch_size', 4),
-            per_device_eval_batch_size=training_args.get('per_device_eval_batch_size', 4),
-            gradient_accumulation_steps=training_args.get('gradient_accumulation_steps', 4),
+            per_device_train_batch_size=training_args.get('per_device_train_batch_size', 2),
+            per_device_eval_batch_size=training_args.get('per_device_eval_batch_size', 2),
+            gradient_accumulation_steps=training_args.get('gradient_accumulation_steps', 8),
             learning_rate=float(training_args.get('learning_rate', 2e-5)),
             weight_decay=float(training_args.get('weight_decay', 0.01)),
             warmup_steps=training_args.get('warmup_steps', 100),
