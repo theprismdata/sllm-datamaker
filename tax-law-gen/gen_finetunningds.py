@@ -67,7 +67,7 @@ def read_json_data(file_path):
 def load_openapi_data():
     """Load and process all OpenAPI data from tax-law-openapi directory."""
     openapi_data = []
-    openapi_dir = "tax-law-openapi"
+    openapi_dir = "tax-law-gen-raw-data/tax-law-openapi"
     
     if not os.path.exists(openapi_dir):
         logging.warning(f"OpenAPI directory not found: {openapi_dir}")
@@ -136,7 +136,7 @@ def load_openapi_data():
 def load_judgment_data():
     """Load judgment data from tax-law-judgment directory."""
     judgment_data = []
-    judgment_dir = "tax-law-judgment"
+    judgment_dir = "tax-law-gen-raw-data/tax-law-judgment"
     
     if not os.path.exists(judgment_dir):
         logging.warning(f"Judgment directory not found: {judgment_dir}")
@@ -443,81 +443,9 @@ def process_items_with_distillation(json_data, output_file):
     
     return qa_pairs
 
-def separate_teacher_student_data(qa_pairs):
-    """Separate teacher and student data for different training approaches."""
-    teacher_data = []
-    student_data = []
-    
-    for qa_pair in qa_pairs:
-        qa_type = qa_pair.get('type', 'student')
-        if qa_type == 'teacher':
-            teacher_data.append(qa_pair)
-        else:
-            student_data.append(qa_pair)
-    
-    return teacher_data, student_data
-
-def create_mixed_distillation_dataset(teacher_data, student_data, output_file):
-    """Create a mixed dataset combining teacher and student data in a balanced way."""
-    mixed_data = []
-    
-    # Combine teacher and student data with equal representation
-    max_items = max(len(teacher_data), len(student_data))
-    
-    for i in range(max_items):
-        # Add teacher data if available
-        if i < len(teacher_data):
-            mixed_data.append(teacher_data[i])
-        
-        # Add student data if available
-        if i < len(student_data):
-            mixed_data.append(student_data[i])
-    
-    # Shuffle the mixed data for better training
-    random.shuffle(mixed_data)
-    
-    # Save mixed dataset
-    try:
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(mixed_data, f, ensure_ascii=False, indent=2)
-        logging.info(f"Saved mixed distillation dataset: {len(mixed_data)} items to {output_file}")
-    except Exception as e:
-        logging.error(f"Error saving mixed distillation dataset: {e}")
-    
-    return mixed_data
-
-def convert_to_mistral_format(mixed_data, output_file):
-    """Convert mixed distillation data to Mistral format."""
-    mistral_data = []
-    
-    for qa_pair in mixed_data:
-        question = qa_pair.get('question', '')
-        answer = qa_pair.get('answer', '')
-        qa_type = qa_pair.get('type', 'student')
-        
-        if not question or not answer:
-            continue
-            
-        # Mistral format: <s>[INST] 질문 [/INST] 답변 </s>
-        mistral_item = {
-            "text": f"<s>[INST] {question} [/INST] {answer} </s>",
-            "type": qa_type
-        }
-        mistral_data.append(mistral_item)
-    
-    # Save in Mistral format
-    try:
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(mistral_data, f, ensure_ascii=False, indent=2)
-        logging.info(f"Saved Mistral format dataset: {len(mistral_data)} items to {output_file}")
-    except Exception as e:
-        logging.error(f"Error saving Mistral format dataset: {e}")
-    
-    return mistral_data
-
 def main():
     # Set up paths
-    output_file = os.path.join('fine-tunning-ds', "mixed_distillation_legal_qa_dataset.json")
+    output_file = os.path.join('fine-tunning-ds', "distillation_legal_qa_dataset.json")
     
     # Create output directory if it doesn't exist
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -534,32 +462,10 @@ def main():
     
     # Process items with distillation
     logging.info("Starting distillation process...")
-    distillation_output_file = os.path.join('fine-tunning-ds', "distillation_legal_qa_dataset.json")
-    distillation_qa_pairs = process_items_with_distillation(combined_data, distillation_output_file)
+    distillation_qa_pairs = process_items_with_distillation(combined_data, output_file)
     
     logging.info(f"Generated {len(distillation_qa_pairs)} distillation QA pairs")
-    
-    # Separate teacher and student data
-    teacher_data, student_data = separate_teacher_student_data(distillation_qa_pairs)
-    
-    # Create mixed distillation dataset (MIXED APPROACH)
-    logging.info("Creating mixed distillation dataset...")
-    mixed_data = create_mixed_distillation_dataset(teacher_data, student_data, output_file)
-    
-    # Convert to Mistral format
-    mistral_output_file = os.path.join('fine-tunning-ds', "mixed_mistral_legal_qa_dataset.json")
-    convert_to_mistral_format(mixed_data, mistral_output_file)
-    
-    # Print summary
-    logging.info("=== DATASET SUMMARY ===")
-    logging.info(f"Teacher data: {len(teacher_data)}")
-    logging.info(f"Student data: {len(student_data)}")
-    logging.info(f"Mixed distillation data: {len(mixed_data)}")
-    logging.info("=== RECOMMENDED FOR TRAINING ===")
-    logging.info("Use 'mixed_mistral_legal_qa_dataset.json' for Mistral 7B fine-tuning")
-    logging.info("This contains balanced teacher and student responses for optimal learning")
-    
-    logging.info("All datasets generated successfully!")
+    logging.info("Dataset generated successfully!")
 
 if __name__ == "__main__":
     main()
