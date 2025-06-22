@@ -172,7 +172,27 @@ def combine_data_sources():
     logging.info(f"  - OpenAPI: {len(openapi_data)} items")
     logging.info(f"  - Judgment: {len(judgment_data)} items")
     
-    return combined_data
+    # Randomly select 1000 items while maintaining the ratio
+    total_items = len(combined_data)
+    openapi_ratio = len(openapi_data) / total_items
+    
+    # Calculate how many items to take from each source to maintain ratio
+    n_openapi = int(1000 * openapi_ratio)
+    n_judgment = 1000 - n_openapi
+    
+    # Randomly sample from each source
+    sampled_openapi = random.sample(openapi_data, n_openapi)
+    sampled_judgment = random.sample(judgment_data, n_judgment)
+    
+    # Combine sampled data
+    sampled_data = sampled_openapi + sampled_judgment
+    random.shuffle(sampled_data)  # Shuffle the final dataset
+    
+    logging.info(f"Sampled 1000 items while maintaining source ratio:")
+    logging.info(f"  - OpenAPI: {n_openapi} items")
+    logging.info(f"  - Judgment: {n_judgment} items")
+    
+    return sampled_data
 
 def extract_content_parts(content):
     """Safely extract parts from content string."""
@@ -238,74 +258,74 @@ def generate_distillation_prompt(item):
         
         # Different prompts for different data sources
         if source == 'openapi':
-            # For OpenAPI data (law articles) - distillation version
-            prompt = f"""다음 세법 조문에 대해 두 가지 수준의 답변을 생성해주세요.
+            # For OpenAPI data (law articles) - create practical user scenarios
+            law_name = metadata.get('law_name', '')
+            article_num = metadata.get('article_num', '')
+            
+            prompt = f"""다음 세법 조문을 바탕으로 실제 사용자의 관점에서 자주 물어볼 수 있는 질문과 답변을 생성해주세요.
 
-            제목: {title}
+            법령: {law_name}
+            조문번호: {article_num}
             조문내용: {content}
-            기본답변: {response}
 
-            다음 두 가지 형식으로 작성해주세요:
+            다음과 같은 형식으로 실용적인 질의응답을 작성해주세요:
 
-            1. 전문가 수준 답변 (상세하고 정확한 법적 해석):
-            [법조문의 세부사항, 적용 조건, 예외사항, 관련 판례 등을 포함한 상세한 답변]
+            1. 전문가 답변 (상세하고 정확한 설명):
+            [질문] 실제 납세자가 물어볼 수 있는 구체적인 상황이나 사례 기반 질문
+            [답변] 법적 근거를 포함한 명확하고 상세한 설명, 구체적인 절차나 계산 방법 포함
 
-            2. 일반인 수준 답변 (간단하고 이해하기 쉬운 설명):
-            [핵심 내용만 간단명료하게 설명하고, 실제 적용 예시 포함]"""
+            2. 일반인을 위한 답변 (쉽게 이해할 수 있는 설명):
+            [질문] 같은 내용에 대해 더 일상적인 언어로 표현한 질문
+            [답변] 법률 용어를 최소화하고 실생활에 적용할 수 있는 쉬운 설명과 예시 포함"""
             
         else:
-            # For judgment data - distillation version
+            # For judgment data - create practical Q&A based on the case
             facts, query, structured_format = extract_content_parts(content)
             related_laws = metadata.get('related_laws', [])
             
-            if not structured_format and not (facts or query):
-                if title and response:
-                    facts = ''
-                    query = title
-                else:
-                    logging.warning("Insufficient content for distillation generation")
-                    return None
-            
             if structured_format:
-                prompt = f"""다음 세법 해석 사례에 대해 두 가지 수준의 답변을 생성해주세요.
+                prompt = f"""다음 세금 관련 사례를 바탕으로 실제 납세자의 관점에서 자주 물어볼 수 있는 질문과 답변을 생성해주세요.
 
-                제목: {title}
+                사례 제목: {title}
                 사실관계: {facts}
                 질의요지: {query}
-                기본답변: {response}
+                판단: {response}
                 관련법령: {', '.join(related_laws) if related_laws else ''}
 
-                다음 두 가지 형식으로 작성해주세요:
+                다음과 같은 형식으로 실용적인 질의응답을 작성해주세요:
 
-                1. 전문가 수준 답변 (상세한 법적 분석):
-                [관련 법령의 정확한 해석, 판례 분석, 적용 조건 등을 포함한 전문적 답변]
+                1. 전문가 답변 (구체적인 설명):
+                [질문] 이 사례와 관련하여 납세자가 실제로 물어볼 수 있는 구체적인 질문
+                [답변] 판례를 근거로 한 명확한 설명, 실무적 적용 방법 포함
 
-                2. 일반인 수준 답변 (실용적 조언):
-                [핵심 내용을 쉽게 설명하고, 실무적 조언과 주의사항 포함]"""
+                2. 일반인을 위한 답변 (이해하기 쉬운 설명):
+                [질문] 같은 내용에 대해 일상적인 언어로 표현한 질문
+                [답변] 쉬운 용어로 설명하고 실제 적용 방법 안내"""
             else:
-                prompt = f"""다음 세법 관련 내용에 대해 두 가지 수준의 답변을 생성해주세요.
+                prompt = f"""다음 세금 관련 내용을 바탕으로 실제 납세자의 관점에서 자주 물어볼 수 있는 질문과 답변을 생성해주세요.
 
                 제목: {title}
-                내용: {facts}
-                {query if query else ''}
-                기본답변: {response}
+                내용: {content}
+                결론: {response}
                 관련법령: {', '.join(related_laws) if related_laws else ''}
 
-                다음 두 가지 형식으로 작성해주세요:
+                다음과 같은 형식으로 실용적인 질의응답을 작성해주세요:
 
-                1. 전문가 수준 답변 (상세한 법적 분석):
-                [법적 근거와 상세한 분석을 포함한 전문적 답변]
+                1. 전문가 답변 (구체적인 설명):
+                [질문] 이와 관련하여 납세자가 실제로 물어볼 수 있는 구체적인 질문
+                [답변] 법적 근거를 포함한 명확한 설명, 실무적 적용 방법 포함
 
-                2. 일반인 수준 답변 (실용적 조언):
-                [핵심 내용을 쉽게 설명하고, 실무적 조언 포함]"""
+                2. 일반인을 위한 답변 (이해하기 쉬운 설명):
+                [질문] 같은 내용에 대해 일상적인 언어로 표현한 질문
+                [답변] 쉬운 용어로 설명하고 실제 적용 방법 안내"""
             
         prompt += """
         주의사항:
-        1. 전문가 수준 답변은 정확하고 상세해야 합니다
-        2. 일반인 수준 답변은 이해하기 쉽고 실용적이어야 합니다
-        3. 두 답변 모두 같은 질문에 대한 것이어야 합니다
+        1. 질문은 실제 납세자가 물어볼 법한 구체적인 상황이나 사례를 포함해야 합니다
+        2. 전문가 답변에는 법적 근거와 정확한 절차를 포함해야 합니다
+        3. 일반인 답변은 쉬운 용어를 사용하고 실제 적용 방법을 안내해야 합니다
         4. 모든 내용은 한글로 작성해주세요
-        5. "1. 전문가 수준 답변:"과 "2. 일반인 수준 답변:" 형식으로 구분해주세요"""
+        5. 각 답변은 실용적이고 실행 가능한 정보를 제공해야 합니다"""
         
         return prompt
     except Exception as e:
@@ -318,24 +338,35 @@ def parse_distillation_response(response_text):
         if not response_text:
             return None, None
             
-        # Split by the two answer sections
-        parts = response_text.split('1. 전문가 수준 답변:')
+        # Split by the expert and general sections
+        parts = response_text.split('1. 전문가 답변')
         if len(parts) < 2:
             return None, None
             
         expert_part = parts[1]
-        parts = expert_part.split('2. 일반인 수준 답변:')
+        parts = expert_part.split('2. 일반인을 위한 답변')
         if len(parts) < 2:
             return None, None
             
-        expert_answer = parts[0].strip()
-        student_answer = parts[1].strip()
-        
-        # Clean up the answers
-        expert_answer = expert_answer.replace('\n\n', '\n').strip()
-        student_answer = student_answer.replace('\n\n', '\n').strip()
-        
-        return expert_answer, student_answer
+        # Extract expert Q&A
+        expert_qa = parts[0].strip()
+        expert_parts = expert_qa.split('[질문]')
+        if len(expert_parts) > 1:
+            expert_q = expert_parts[1].split('[답변]')[0].strip()
+            expert_a = expert_parts[1].split('[답변]')[1].strip()
+        else:
+            return None, None
+            
+        # Extract student Q&A
+        student_qa = parts[1].strip()
+        student_parts = student_qa.split('[질문]')
+        if len(student_parts) > 1:
+            student_q = student_parts[1].split('[답변]')[0].strip()
+            student_a = student_parts[1].split('[답변]')[1].strip()
+        else:
+            return None, None
+            
+        return (expert_q, expert_a), (student_q, student_a)
         
     except Exception as e:
         logging.error(f"Error parsing distillation response: {e}")
@@ -396,22 +427,23 @@ def process_items_with_distillation(json_data, output_file):
         
         if distillation_response:
             # Parse distillation response
-            expert_answer, student_answer = parse_distillation_response(distillation_response)
+            expert_qa, student_qa = parse_distillation_response(distillation_response)
             
-            if expert_answer and student_answer:
+            if expert_qa and student_qa:
+                expert_q, expert_a = expert_qa
+                student_q, student_a = student_qa
+                
                 # Create distillation QA pairs
-                # For teacher model (expert answer)
                 teacher_qa = {
-                    "question": f"{item.get('title', '')}에 대해 설명해주세요.",
-                    "answer": expert_answer,
+                    "question": expert_q,
+                    "answer": expert_a,
                     "type": "teacher",
                     "source": item.get('metadata', {}).get('source', 'unknown')
                 }
                 
-                # For student model (simplified answer)
                 student_qa = {
-                    "question": f"{item.get('title', '')}에 대해 설명해주세요.",
-                    "answer": student_answer,
+                    "question": student_q,
+                    "answer": student_a,
                     "type": "student",
                     "source": item.get('metadata', {}).get('source', 'unknown')
                 }
