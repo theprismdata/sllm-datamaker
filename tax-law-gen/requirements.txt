@@ -7,7 +7,7 @@ llama-cpp-python
 anthropic
 pyyaml
 peft>=0.7.0
-bitsandbytes>=0.41.0
+bitsandbytes>=0.41.1
 datasets>=2.14.0
 tensorboard>=2.13.0
 scipy>=1.10.0

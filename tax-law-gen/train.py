@@ -186,12 +186,16 @@ def main():
     
     # Load model
     logger.info(f"Loading model from {config.model_name}")
+    torch.cuda.empty_cache()  # Clear CUDA cache before model loading
     model = AutoModelForCausalLM.from_pretrained(
         config.model_name,
         torch_dtype=torch.float16,
         device_map="auto",
-        trust_remote_code=True
+        trust_remote_code=True,
+        load_in_8bit=True,  # Enable 8-bit quantization
     )
+    
+    model.gradient_checkpointing_enable()  # Enable gradient checkpointing
     
     # Configure LoRA
     logger.info("Configuring LoRA")
@@ -257,7 +261,9 @@ def main():
         report_to=config.report_to,
         run_name=config.run_name,
         save_total_limit=3,
-        logging_dir=f"{config.output_dir}/logs"
+        logging_dir=f"{config.output_dir}/logs",
+        gradient_checkpointing=True,  # Enable gradient checkpointing in training
+        optim="adamw_torch_fused"  # Use fused optimizer
     )
     
     # Initialize trainer
