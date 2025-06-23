@@ -1,5 +1,5 @@
-# Phi-2 Tax Law Q&A Fine-tuning Project
 
+# Phi-2 Tax Law Q&A Fine-tuning Project
 이 프로젝트는 Microsoft Phi-2 모델을 세법 Q&A 데이터셋으로 파인튜닝하여 실용적인 세법 질의응답 시스템을 구축하는 프로젝트입니다.
 
 
